@@ -1,0 +1,93 @@
+name: Build OpenWrt IPKs (frpc-ext / frps-ext / luci-app-frpc-ext)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: x86_64
+            target: x86/64
+            arch: x86_64
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          - name: aarch64_generic
+            target: rockchip/armv8
+            arch: aarch64_generic
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/rockchip/armv8/openwrt-sdk-23.05.5-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          - name: arm_cortex-a9_vfpv3-d16
+            target: mvebu/cortexa9
+            arch: arm_cortex-a9_vfpv3-d16
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/mvebu/cortexa9/openwrt-sdk-23.05.5-mvebu-cortexa9_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+          - name: mipsel_24kc
+            target: ramips/mt7621
+            arch: mipsel_24kc
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/ramips/mt7621/openwrt-sdk-23.05.5-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          - name: mips_24kc
+            target: ath79/generic
+            arch: mips_24kc
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/ath79/generic/openwrt-sdk-23.05.5-ath79-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download OpenWrt SDK
+        run: |
+          mkdir -p sdk
+          curl -L "${{ matrix.sdk }}" -o sdk/sdk.tar.xz
+          tar -C sdk -xf sdk/sdk.tar.xz
+          echo "SDK_DIR=$(find sdk -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)" >> $GITHUB_ENV
+
+      - name: Prepare feeds
+        run: |
+          cd "$SDK_DIR"
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Add frp-ext packages
+        run: |
+          cd "$SDK_DIR"
+          mkdir -p package/frpc-ext package/frps-ext package/luci-app-frpc-ext
+          cp -r "$GITHUB_WORKSPACE/net/frpc-ext/." package/frpc-ext/
+          cp -r "$GITHUB_WORKSPACE/net/frps-ext/." package/frps-ext/
+          cp -r "$GITHUB_WORKSPACE/luci/luci-app-frpc-ext/." package/luci-app-frpc-ext/
+
+      - name: Configure build
+        run: |
+          cd "$SDK_DIR"
+          cat > .config <<'EOF'
+          CONFIG_PACKAGE_frpc-ext=y
+          CONFIG_PACKAGE_frps-ext=y
+          CONFIG_PACKAGE_luci-app-frpc-ext=y
+          EOF
+          make defconfig
+
+      - name: Build packages
+        run: |
+          cd "$SDK_DIR"
+          make package/frpc-ext/compile package/frps-ext/compile package/luci-app-frpc-ext/compile -j$(nproc) V=s
+
+      - name: Collect artifacts
+        run: |
+          cd "$SDK_DIR"
+          outdir="$GITHUB_WORKSPACE/ipk-${{ matrix.name }}"
+          mkdir -p "$outdir"
+          find bin/packages -name 'frpc-ext_*.ipk' -o -name 'frps-ext_*.ipk' -o -name 'luci-app-frpc-ext_*.ipk' | while read -r f; do
+            cp "$f" "$outdir"/
+          done
+          ls -l "$outdir"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipk-${{ matrix.name }}
+          path: ipk-${{ matrix.name }}/*.ipk
