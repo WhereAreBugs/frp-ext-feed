@@ -28,7 +28,7 @@ endif
 PKG_BUILD_FLAGS:=no-mips16
 
 GO_PKG:=github.com/fatedier/frp
-GO_PKG_BUILD_PKG:=./cmd/frps
+GO_PKG_BUILD_PKG:=./src/$(GO_PKG)/cmd/frps
 GO_PKG_TAGS:=frps
 GO_PKG_LDFLAGS:=-s -w
 
