@@ -161,7 +161,7 @@ jobs:
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22.x'
+          go-version: '1.24.x'
         # Used when FRP_EXT_USE_SYSTEM_GO=1.
 
       - name: Prepare feeds

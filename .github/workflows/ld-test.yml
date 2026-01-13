@@ -1,0 +1,144 @@
+name: Build OpenWrt IPKs (Test)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FRP_EXT_USE_SYSTEM_GO: "1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SDK_URL: https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+      SDK_NAME: x86_64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute SDK cache key
+        id: sdk_key
+        run: |
+          set -eux
+          echo "hash=$(echo -n '${{ env.SDK_URL }}' | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Cache OpenWrt SDK
+        id: sdk_cache
+        uses: actions/cache@v4
+        with:
+          path: sdk
+          key: openwrt-sdk-${{ steps.sdk_key.outputs.hash }}
+          restore-keys: |
+            openwrt-sdk-
+
+      - name: Download OpenWrt SDK
+        if: steps.sdk_cache.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          mkdir -p sdk
+          sdk_tar="sdk/sdk.tar"
+          curl -L "${{ env.SDK_URL }}" -o "$sdk_tar"
+          tar -C sdk -xf "$sdk_tar"
+
+      - name: Locate SDK directory
+        run: |
+          set -eux
+          SDK_DIR="$(find sdk -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)"
+          test -n "$SDK_DIR"
+          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
+
+      - name: Setup Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+
+      - name: Prepare feeds
+        run: |
+          set -eux
+          cd "$SDK_DIR"
+
+          if [ -d package/feeds/packages/golang ] && [ -d package/feeds/luci/luci-base ] && [ -d package/feeds/base/lua ]; then
+            echo "feeds already prepared (cache hit), skip update/install"
+            exit 0
+          fi
+
+          if [ -f feeds.conf.default ]; then
+            sed -i \
+              -e 's#https://git.openwrt.org/feed/packages.git#https://github.com/openwrt/packages.git#g' \
+              -e 's#https://git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' \
+              feeds.conf.default
+          fi
+
+          for i in 1 2 3 4 5; do
+            ./scripts/feeds update base packages luci && break || sleep $((i*15))
+          done
+
+          test -d feeds/packages
+          test -d feeds/luci
+
+          ./scripts/feeds install -p base packages golang
+          ./scripts/feeds install -p luci luci-base
+
+          test -d package/feeds/packages/golang
+          test -d package/feeds/luci/luci-base
+          test -d package/feeds/base/lua
+
+      - name: Add frp-ext packages
+        run: |
+          set -eux
+          cd "$SDK_DIR"
+          mkdir -p package/frpc-ext package/frps-ext package/luci-app-frpc-ext package/luci-app-frps-ext
+          cp -r "$GITHUB_WORKSPACE/net/frpc-ext/." package/frpc-ext/
+          cp -r "$GITHUB_WORKSPACE/net/frps-ext/." package/frps-ext/
+          cp -r "$GITHUB_WORKSPACE/luci/luci-app-frpc-ext/." package/luci-app-frpc-ext/
+          cp -r "$GITHUB_WORKSPACE/luci/luci-app-frps-ext/." package/luci-app-frps-ext/
+
+      - name: Configure build
+        run: |
+          set -eux
+          cd "$SDK_DIR"
+          cat > .config <<'EOF'
+          CONFIG_PACKAGE_frpc-ext=y
+          CONFIG_PACKAGE_frps-ext=y
+          CONFIG_PACKAGE_luci-app-frpc-ext=y
+          CONFIG_PACKAGE_luci-app-frps-ext=y
+          EOF
+          make defconfig
+
+      - name: Build packages
+        run: |
+          set -eux
+          cd "$SDK_DIR"
+          make \
+            package/frpc-ext/compile \
+            package/frps-ext/compile \
+            package/luci-app-frpc-ext/compile \
+            package/luci-app-frps-ext/compile \
+            -j$(nproc) V=s
+
+      - name: Collect artifacts
+        run: |
+          set -eux
+          cd "$SDK_DIR"
+          outdir="$GITHUB_WORKSPACE/ipk-${{ env.SDK_NAME }}"
+          mkdir -p "$outdir"
+          find bin/packages \( \
+            -name 'frpc-ext_*.ipk' -o \
+            -name 'frps-ext_*.ipk' -o \
+            -name 'luci-app-frpc-ext_*.ipk' -o \
+            -name 'luci-app-frps-ext_*.ipk' \
+          \) -print | while read -r f; do
+            cp "$f" "$outdir"/
+          done
+          ls -l "$outdir"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipk-${{ env.SDK_NAME }}
+          path: ipk-${{ env.SDK_NAME }}/*.ipk
