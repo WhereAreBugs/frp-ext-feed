@@ -147,8 +147,9 @@ jobs:
       - name: Locate SDK directory
         run: |
           set -eux
-          echo "SDK_DIR=$(find sdk -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)" >> $GITHUB_ENV
+          SDK_DIR="$(find sdk -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)"
           test -n "$SDK_DIR"
+          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
 
       - name: Prepare feeds
         run: |
