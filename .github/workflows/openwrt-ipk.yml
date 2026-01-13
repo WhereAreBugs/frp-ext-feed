@@ -170,7 +170,7 @@ jobs:
           cd "$SDK_DIR"
 
           # If restored from cache and already prepared, skip network operations.
-          if [ -d package/feeds/packages ] && [ -d package/feeds/luci ]; then
+          if [ -d package/feeds/packages/golang ] && [ -d package/feeds/luci/luci-base ]; then
             echo "feeds already prepared (cache hit), skip update/install"
             exit 0
           fi
@@ -193,14 +193,14 @@ jobs:
 
           # Install only the package definitions required to build our packages.
           # Avoid `-a` to reduce runtime and network/load.
-          ./scripts/feeds install -p packages golang lua
+          ./scripts/feeds install -p packages golang
           ./scripts/feeds install -p luci luci-base
 
-          test -d package/feeds/packages
-          test -d package/feeds/luci
           test -d package/feeds/packages/golang
-          test -d package/feeds/packages/lua
           test -d package/feeds/luci/luci-base
+
+          # lua is provided by OpenWrt base tree in the SDK.
+          test -d package/utils/lua
 
       - name: Add frp-ext packages
         run: |
