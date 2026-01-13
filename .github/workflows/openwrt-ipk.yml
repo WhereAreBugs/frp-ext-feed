@@ -239,12 +239,7 @@ jobs:
           cd "$SDK_DIR"
           outdir="$GITHUB_WORKSPACE/ipk-${{ matrix.name }}"
           mkdir -p "$outdir"
-          find bin/packages \(
-            -name 'frpc-ext_*.ipk' -o \
-            -name 'frps-ext_*.ipk' -o \
-            -name 'luci-app-frpc-ext_*.ipk' -o \
-            -name 'luci-app-frps-ext_*.ipk' \
-          \) -print | while read -r f; do
+          find bin/packages \( -name 'frpc-ext_*.ipk' -o -name 'frps-ext_*.ipk' -o -name 'luci-app-frpc-ext_*.ipk' -o -name 'luci-app-frps-ext_*.ipk' \) -print | while read -r f; do
             cp "$f" "$outdir"/
           done
           ls -l "$outdir"
