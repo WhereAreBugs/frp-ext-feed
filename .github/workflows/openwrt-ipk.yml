@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Use system Go toolchain (CI optimization)
+  FRP_EXT_USE_SYSTEM_GO: "1"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -176,13 +180,12 @@ jobs:
             sed -i \
               -e 's#https://git.openwrt.org/feed/packages.git#https://github.com/openwrt/packages.git#g' \
               -e 's#https://git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' \
-              -e 's#https://git.openwrt.org/feed/routing.git#https://github.com/openwrt/routing.git#g' \
-              -e 's#https://git.openwrt.org/feed/telephony.git#https://github.com/openwrt/telephony.git#g' \
               feeds.conf.default
           fi
 
+          # Minimal feeds required to build: frpc-ext/frps-ext + LuCI apps.
           for i in 1 2 3 4 5; do
-            ./scripts/feeds update packages luci routing telephony && break || sleep $((i*15))
+            ./scripts/feeds update packages luci && break || sleep $((i*15))
           done
 
           test -d feeds/packages
@@ -190,8 +193,6 @@ jobs:
 
           ./scripts/feeds install -a -p packages
           ./scripts/feeds install -a -p luci
-          ./scripts/feeds install -a -p routing
-          ./scripts/feeds install -a -p telephony
 
           test -d package/feeds/packages
           test -d package/feeds/luci
@@ -227,8 +228,7 @@ jobs:
             package/frps-ext/compile \
             package/luci-app-frpc-ext/compile \
             package/luci-app-frps-ext/compile \
-            -j$(nproc) V=s \
-            FRP_EXT_USE_SYSTEM_GO=1
+            -j$(nproc) V=s
 
       - name: Collect artifacts
         run: |
