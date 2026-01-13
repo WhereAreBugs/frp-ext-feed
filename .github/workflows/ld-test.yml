@@ -69,6 +69,7 @@ jobs:
 
           if [ -f feeds.conf.default ]; then
             sed -i \
+              -e 's#https://git.openwrt.org/openwrt/openwrt.git#https://github.com/openwrt/openwrt.git#g' \
               -e 's#https://git.openwrt.org/feed/packages.git#https://github.com/openwrt/packages.git#g' \
               -e 's#https://git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' \
               feeds.conf.default
@@ -136,13 +137,16 @@ jobs:
           cd "$SDK_DIR"
           outdir="$GITHUB_WORKSPACE/ipk-${{ env.SDK_NAME }}"
           mkdir -p "$outdir"
-          find bin/packages \( -name 'frpc-ext_*.ipk' -o -name 'frps-ext_*.ipk' -o -name 'luci-app-frpc-ext_*.ipk' -o -name 'luci-app-frps-ext_*.ipk' \) -print | while read -r f; do
+          find bin/packages \( -name 'frpc-ext_*.ipk' -o -name 'frps-ext_*.ipk' -o -name 'luci-app-frpc-ext_*.ipk' -o -name 'luci-app-frps-ext_*.ipk' -o -name 'frpc-ext-*.apk' -o -name 'frps-ext-*.apk' -o -name 'luci-app-frpc-ext-*.apk' -o -name 'luci-app-frps-ext-*.apk' \) -print | while read -r f; do
             cp "$f" "$outdir"/
           done
-          ls -l "$outdir"
+          ls -l "$outdir" || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ipk-${{ env.SDK_NAME }}
-          path: ipk-${{ env.SDK_NAME }}/*.ipk
+          path: |
+            ipk-${{ env.SDK_NAME }}/*.ipk
+            ipk-${{ env.SDK_NAME }}/*.apk
+          if-no-files-found: ignore

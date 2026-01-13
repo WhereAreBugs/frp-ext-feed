@@ -178,6 +178,7 @@ jobs:
           # Use GitHub mirrors to avoid git.openwrt.org flakiness.
           if [ -f feeds.conf.default ]; then
             sed -i \
+              -e 's#https://git.openwrt.org/openwrt/openwrt.git#https://github.com/openwrt/openwrt.git#g' \
               -e 's#https://git.openwrt.org/feed/packages.git#https://github.com/openwrt/packages.git#g' \
               -e 's#https://git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' \
               feeds.conf.default
@@ -239,19 +240,22 @@ jobs:
           cd "$SDK_DIR"
           outdir="$GITHUB_WORKSPACE/ipk-${{ matrix.name }}"
           mkdir -p "$outdir"
-          find bin/packages \( -name 'frpc-ext_*.ipk' -o -name 'frps-ext_*.ipk' -o -name 'luci-app-frpc-ext_*.ipk' -o -name 'luci-app-frps-ext_*.ipk' \) -print | while read -r f; do
+          find bin/packages \( -name 'frpc-ext_*.ipk' -o -name 'frps-ext_*.ipk' -o -name 'luci-app-frpc-ext_*.ipk' -o -name 'luci-app-frps-ext_*.ipk' -o -name 'frpc-ext-*.apk' -o -name 'frps-ext-*.apk' -o -name 'luci-app-frpc-ext-*.apk' -o -name 'luci-app-frps-ext-*.apk' \) -print | while read -r f; do
             cp "$f" "$outdir"/
           done
-          ls -l "$outdir"
+          ls -l "$outdir" || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ipk-${{ matrix.name }}
-          path: ipk-${{ matrix.name }}/*.ipk
+          path: |
+            ipk-${{ matrix.name }}/*.ipk
+            ipk-${{ matrix.name }}/*.apk
+          if-no-files-found: ignore
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: always() && startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -268,7 +272,13 @@ jobs:
         run: |
           set -eux
           cd dist
-          sha256sum *.ipk > SHA256SUMS
+          shopt -s nullglob
+          files=( *.ipk *.apk )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No package artifacts found"
+            exit 1
+          fi
+          sha256sum "${files[@]}" > SHA256SUMS
           ls -l
 
       - name: Create GitHub Release
@@ -277,4 +287,5 @@ jobs:
           generate_release_notes: true
           files: |
             dist/*.ipk
+            dist/*.apk
             dist/SHA256SUMS
