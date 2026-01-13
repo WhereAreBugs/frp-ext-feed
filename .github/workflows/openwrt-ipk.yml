@@ -191,11 +191,16 @@ jobs:
           test -d feeds/packages
           test -d feeds/luci
 
-          ./scripts/feeds install -a -p packages
-          ./scripts/feeds install -a -p luci
+          # Install only the package definitions required to build our packages.
+          # Avoid `-a` to reduce runtime and network/load.
+          ./scripts/feeds install -p packages golang lua
+          ./scripts/feeds install -p luci luci-base
 
           test -d package/feeds/packages
           test -d package/feeds/luci
+          test -d package/feeds/packages/golang
+          test -d package/feeds/packages/lua
+          test -d package/feeds/luci/luci-base
 
       - name: Add frp-ext packages
         run: |

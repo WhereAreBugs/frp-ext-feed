@@ -13,7 +13,8 @@ PKG_MIRROR_HASH:=skip
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)/src
+# Keep default PKG_BUILD_DIR layout so go.mod is at source root.
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 # Default (normal OpenWrt buildroot/SDK): build and use OpenWrt's golang/host.
 # CI optimization: set FRP_EXT_USE_SYSTEM_GO=1 to use system Go instead.
