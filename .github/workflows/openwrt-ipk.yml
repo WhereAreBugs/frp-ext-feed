@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  prepare:
+    name: Prepare SDK (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -129,7 +130,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: sdk
-          key: openwrt-sdk-${{ matrix.name }}-${{ steps.sdk_key.outputs.hash }}
+          # Share cache across runs for the same SDK URL.
+          key: openwrt-sdk-${{ steps.sdk_key.outputs.hash }}
+          restore-keys: |
+            openwrt-sdk-
 
       - name: Download OpenWrt SDK
         if: steps.sdk_cache.outputs.cache-hit != 'true'
@@ -155,11 +159,142 @@ jobs:
         run: |
           set -eux
           cd "$SDK_DIR"
-          # Only fetch required feeds to save time/bandwidth and
-          # avoid missing optional feeds (e.g. telephony/video).
-          ./scripts/feeds update packages luci
+
+          # If restored from cache and already prepared, skip network operations.
+          if [ -d package/feeds/packages ] && [ -d package/feeds/luci ]; then
+            echo "feeds already prepared (cache hit), skip update/install"
+            exit 0
+          fi
+
+          # Use GitHub mirrors to avoid git.openwrt.org flakiness.
+          if [ -f feeds.conf.default ]; then
+            sed -i \
+              -e 's#https://git.openwrt.org/feed/packages.git#https://github.com/openwrt/packages.git#g' \
+              -e 's#https://git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' \
+              -e 's#https://git.openwrt.org/feed/routing.git#https://github.com/openwrt/routing.git#g' \
+              -e 's#https://git.openwrt.org/feed/telephony.git#https://github.com/openwrt/telephony.git#g' \
+              feeds.conf.default
+          fi
+
+          for i in 1 2 3 4 5; do
+            ./scripts/feeds update packages luci routing telephony && break || sleep $((i*15))
+          done
+
+          test -d feeds/packages
+          test -d feeds/luci
+
           ./scripts/feeds install -a -p packages
           ./scripts/feeds install -a -p luci
+          ./scripts/feeds install -a -p routing
+          ./scripts/feeds install -a -p telephony
+
+          test -d package/feeds/packages
+          test -d package/feeds/luci
+
+      - name: Shrink prepared SDK
+        run: |
+          set -eux
+          # Remove git metadata in feeds to reduce artifact size.
+          find "$SDK_DIR/feeds" -type d -name .git -prune -exec rm -rf '{}' + || true
+
+      - name: Pack prepared SDK
+        run: |
+          set -eux
+          tar --zstd -cf "prepared-sdk-${{ matrix.name }}.tar.zst" sdk
+
+      - name: Upload prepared SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-sdk-${{ matrix.name }}
+          path: prepared-sdk-${{ matrix.name }}.tar.zst
+          retention-days: 7
+
+  build:
+    name: Build IPKs (${{ matrix.name }})
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Keep in sync with prepare.matrix
+          - name: x86_64
+            target: x86/64
+            arch: x86_64
+          - name: i386_pentium4
+            target: x86/generic
+            arch: i386_pentium4
+          - name: aarch64_generic
+            target: rockchip/armv8
+            arch: aarch64_generic
+          - name: arm_cortex-a7_neon-vfpv4
+            target: ipq40xx/generic
+            arch: arm_cortex-a7_neon-vfpv4
+          - name: arm_cortex-a15_neon-vfpv4
+            target: ipq806x/generic
+            arch: arm_cortex-a15_neon-vfpv4
+          - name: arm_cortex-a9_vfpv3-d16
+            target: mvebu/cortexa9
+            arch: arm_cortex-a9_vfpv3-d16
+          - name: armsr_armv7
+            target: armsr/armv7
+            arch: armsr_armv7
+          - name: bcm27xx_bcm2709
+            target: bcm27xx/bcm2709
+            arch: bcm27xx_bcm2709
+          - name: sunxi_cortexa7
+            target: sunxi/cortexa7
+            arch: sunxi_cortexa7
+          - name: mediatek_mt7623
+            target: mediatek/mt7623
+            arch: mediatek_mt7623
+          - name: mipsel_24kc
+            target: ramips/mt7621
+            arch: mipsel_24kc
+          - name: mips_24kc
+            target: ath79/generic
+            arch: mips_24kc
+          - name: mips64_octeonplus
+            target: octeon/generic
+            arch: mips64_octeonplus
+          - name: riscv64_riscv64
+            target: sifiveu/generic
+            arch: riscv64_riscv64
+          - name: mips64el_mips64
+            target: malta/le64
+            arch: mips64el_mips64
+          - name: loongarch64_generic
+            target: loongarch64/generic
+            arch: loongarch64_generic
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download prepared SDK
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-sdk-${{ matrix.name }}
+
+      - name: Extract prepared SDK
+        run: |
+          set -eux
+          tar --zstd -xf "prepared-sdk-${{ matrix.name }}.tar.zst"
+
+      - name: Locate SDK directory
+        run: |
+          set -eux
+          SDK_DIR="$(find sdk -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)"
+          test -n "$SDK_DIR"
+          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
+
+      - name: Setup Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+        # Used when FRP_EXT_USE_SYSTEM_GO=1.
 
       - name: Add frp-ext packages
         run: |
@@ -192,7 +327,8 @@ jobs:
             package/frps-ext/compile \
             package/luci-app-frpc-ext/compile \
             package/luci-app-frps-ext/compile \
-            -j$(nproc) V=s
+            -j$(nproc) V=s \
+            FRP_EXT_USE_SYSTEM_GO=1
 
       - name: Collect artifacts
         run: |

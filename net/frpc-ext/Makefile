@@ -14,7 +14,12 @@ PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)/src
+
+# Default (normal OpenWrt buildroot/SDK): build and use OpenWrt's golang/host.
+# CI optimization: set FRP_EXT_USE_SYSTEM_GO=1 to use system Go instead.
+ifndef FRP_EXT_USE_SYSTEM_GO
 PKG_BUILD_DEPENDS:=golang/host
+endif
 
 # Go packages don't work with MIPS16.
 # This keeps the package buildable on MIPS targets.
