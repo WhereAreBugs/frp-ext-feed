@@ -16,6 +16,10 @@ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)/src
 PKG_BUILD_DEPENDS:=golang/host
 
+# Go packages don't work with MIPS16.
+# This keeps the package buildable on MIPS targets.
+PKG_BUILD_FLAGS:=no-mips16
+
 GO_PKG:=github.com/fatedier/frp
 GO_PKG_BUILD_PKG:=./cmd/frpc
 GO_PKG_TAGS:=frpc

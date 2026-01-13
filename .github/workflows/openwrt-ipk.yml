@@ -1,7 +1,10 @@
-name: Build OpenWrt IPKs (frpc-ext / frps-ext / luci-app-frpc-ext)
+name: Build OpenWrt IPKs
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
@@ -13,26 +16,101 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # amd64
           - name: x86_64
             target: x86/64
             arch: x86_64
             sdk: https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+          # 386
+          - name: i386_pentium4
+            target: x86/generic
+            arch: i386_pentium4
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/x86/generic/openwrt-sdk-23.05.5-x86-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+          # arm64
           - name: aarch64_generic
             target: rockchip/armv8
             arch: aarch64_generic
             sdk: https://downloads.openwrt.org/releases/23.05.5/targets/rockchip/armv8/openwrt-sdk-23.05.5-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+          # armv7 (older routers)
+          - name: arm_cortex-a7_neon-vfpv4
+            target: ipq40xx/generic
+            arch: arm_cortex-a7_neon-vfpv4
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/ipq40xx/generic/openwrt-sdk-23.05.5-ipq40xx-generic_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+
+          # armv7a (older routers)
+          - name: arm_cortex-a15_neon-vfpv4
+            target: ipq806x/generic
+            arch: arm_cortex-a15_neon-vfpv4
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/ipq806x/generic/openwrt-sdk-23.05.5-ipq806x-generic_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+
+          # arm (kept for compatibility)
           - name: arm_cortex-a9_vfpv3-d16
             target: mvebu/cortexa9
             arch: arm_cortex-a9_vfpv3-d16
             sdk: https://downloads.openwrt.org/releases/23.05.5/targets/mvebu/cortexa9/openwrt-sdk-23.05.5-mvebu-cortexa9_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+
+          # armv7 (generic)
+          - name: armsr_armv7
+            target: armsr/armv7
+            arch: armsr_armv7
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/armsr/armv7/openwrt-sdk-23.05.5-armsr-armv7_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+
+          # armv7 (Raspberry Pi 2)
+          - name: bcm27xx_bcm2709
+            target: bcm27xx/bcm2709
+            arch: bcm27xx_bcm2709
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/bcm27xx/bcm2709/openwrt-sdk-23.05.5-bcm27xx-bcm2709_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+
+          # armv7 (Allwinner sunxi)
+          - name: sunxi_cortexa7
+            target: sunxi/cortexa7
+            arch: sunxi_cortexa7
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/sunxi/cortexa7/openwrt-sdk-23.05.5-sunxi-cortexa7_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+
+          # armv7 (MediaTek MT7623)
+          - name: mediatek_mt7623
+            target: mediatek/mt7623
+            arch: mediatek_mt7623
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/mediatek/mt7623/openwrt-sdk-23.05.5-mediatek-mt7623_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+
+          # mipsle
           - name: mipsel_24kc
             target: ramips/mt7621
             arch: mipsel_24kc
             sdk: https://downloads.openwrt.org/releases/23.05.5/targets/ramips/mt7621/openwrt-sdk-23.05.5-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+          # mips
           - name: mips_24kc
             target: ath79/generic
             arch: mips_24kc
             sdk: https://downloads.openwrt.org/releases/23.05.5/targets/ath79/generic/openwrt-sdk-23.05.5-ath79-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+          # mips64
+          - name: mips64_octeonplus
+            target: octeon/generic
+            arch: mips64_octeonplus
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/octeon/generic/openwrt-sdk-23.05.5-octeon-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+          # riscv64
+          - name: riscv64_riscv64
+            target: sifiveu/generic
+            arch: riscv64_riscv64
+            sdk: https://downloads.openwrt.org/releases/23.05.5/targets/sifiveu/generic/openwrt-sdk-23.05.5-sifiveu-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+          # mips64le (snapshot)
+          - name: mips64el_mips64
+            target: malta/le64
+            arch: mips64el_mips64
+            sdk: https://downloads.openwrt.org/snapshots/targets/malta/le64/openwrt-sdk-malta-le64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+
+          # loong64 (snapshot)
+          - name: loongarch64_generic
+            target: loongarch64/generic
+            arch: loongarch64_generic
+            sdk: https://downloads.openwrt.org/snapshots/targets/loongarch64/generic/openwrt-sdk-loongarch64-generic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
 
     steps:
       - name: Checkout
@@ -42,46 +120,69 @@ jobs:
 
       - name: Download OpenWrt SDK
         run: |
+          set -eux
           mkdir -p sdk
-          curl -L "${{ matrix.sdk }}" -o sdk/sdk.tar.xz
-          tar -C sdk -xf sdk/sdk.tar.xz
+          sdk_url="${{ matrix.sdk }}"
+          sdk_tar="sdk/sdk.tar"
+          curl -L "$sdk_url" -o "$sdk_tar"
+          case "$sdk_url" in
+            *.tar.zst) tar -C sdk --zstd -xf "$sdk_tar" ;;
+            *) tar -C sdk -xf "$sdk_tar" ;;
+          esac
           echo "SDK_DIR=$(find sdk -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)" >> $GITHUB_ENV
 
       - name: Prepare feeds
         run: |
+          set -eux
           cd "$SDK_DIR"
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Add frp-ext packages
         run: |
+          set -eux
           cd "$SDK_DIR"
-          mkdir -p package/frpc-ext package/frps-ext package/luci-app-frpc-ext
+          mkdir -p package/frpc-ext package/frps-ext package/luci-app-frpc-ext package/luci-app-frps-ext
           cp -r "$GITHUB_WORKSPACE/net/frpc-ext/." package/frpc-ext/
           cp -r "$GITHUB_WORKSPACE/net/frps-ext/." package/frps-ext/
           cp -r "$GITHUB_WORKSPACE/luci/luci-app-frpc-ext/." package/luci-app-frpc-ext/
+          cp -r "$GITHUB_WORKSPACE/luci/luci-app-frps-ext/." package/luci-app-frps-ext/
 
       - name: Configure build
         run: |
+          set -eux
           cd "$SDK_DIR"
           cat > .config <<'EOF'
           CONFIG_PACKAGE_frpc-ext=y
           CONFIG_PACKAGE_frps-ext=y
           CONFIG_PACKAGE_luci-app-frpc-ext=y
+          CONFIG_PACKAGE_luci-app-frps-ext=y
           EOF
           make defconfig
 
       - name: Build packages
         run: |
+          set -eux
           cd "$SDK_DIR"
-          make package/frpc-ext/compile package/frps-ext/compile package/luci-app-frpc-ext/compile -j$(nproc) V=s
+          make \
+            package/frpc-ext/compile \
+            package/frps-ext/compile \
+            package/luci-app-frpc-ext/compile \
+            package/luci-app-frps-ext/compile \
+            -j$(nproc) V=s
 
       - name: Collect artifacts
         run: |
+          set -eux
           cd "$SDK_DIR"
           outdir="$GITHUB_WORKSPACE/ipk-${{ matrix.name }}"
           mkdir -p "$outdir"
-          find bin/packages -name 'frpc-ext_*.ipk' -o -name 'frps-ext_*.ipk' -o -name 'luci-app-frpc-ext_*.ipk' | while read -r f; do
+          find bin/packages \(
+            -name 'frpc-ext_*.ipk' -o \
+            -name 'frps-ext_*.ipk' -o \
+            -name 'luci-app-frpc-ext_*.ipk' -o \
+            -name 'luci-app-frps-ext_*.ipk' \
+          \) -print | while read -r f; do
             cp "$f" "$outdir"/
           done
           ls -l "$outdir"
@@ -91,3 +192,32 @@ jobs:
         with:
           name: ipk-${{ matrix.name }}
           path: ipk-${{ matrix.name }}/*.ipk
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ipk-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          set -eux
+          cd dist
+          sha256sum *.ipk > SHA256SUMS
+          ls -l
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.ipk
+            dist/SHA256SUMS
