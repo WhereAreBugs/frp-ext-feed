@@ -118,7 +118,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Compute SDK cache key
+        id: sdk_key
+        run: |
+          set -eux
+          echo "hash=$(echo -n '${{ matrix.sdk }}' | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Cache OpenWrt SDK
+        id: sdk_cache
+        uses: actions/cache@v4
+        with:
+          path: sdk
+          key: openwrt-sdk-${{ matrix.name }}-${{ steps.sdk_key.outputs.hash }}
+
       - name: Download OpenWrt SDK
+        if: steps.sdk_cache.outputs.cache-hit != 'true'
         run: |
           set -eux
           mkdir -p sdk
@@ -129,14 +143,22 @@ jobs:
             *.tar.zst) tar -C sdk --zstd -xf "$sdk_tar" ;;
             *) tar -C sdk -xf "$sdk_tar" ;;
           esac
+
+      - name: Locate SDK directory
+        run: |
+          set -eux
           echo "SDK_DIR=$(find sdk -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)" >> $GITHUB_ENV
+          test -n "$SDK_DIR"
 
       - name: Prepare feeds
         run: |
           set -eux
           cd "$SDK_DIR"
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          # Only fetch required feeds to save time/bandwidth and
+          # avoid missing optional feeds (e.g. telephony/video).
+          ./scripts/feeds update packages luci
+          ./scripts/feeds install -a -p packages
+          ./scripts/feeds install -a -p luci
 
       - name: Add frp-ext packages
         run: |
