@@ -98,6 +98,15 @@ jobs:
           cp -r "$GITHUB_WORKSPACE/luci/luci-app-frpc-ext/." package/luci-app-frpc-ext/
           cp -r "$GITHUB_WORKSPACE/luci/luci-app-frps-ext/." package/luci-app-frps-ext/
 
+      - name: Show frp-ext Go build targets
+        run: |
+          set -eux
+          cd "$SDK_DIR"
+          echo "package/frpc-ext/Makefile"
+          grep -nE '^(PKG_VERSION|PKG_SOURCE_VERSION|GO_PKG|GO_PKG_BUILD_PKG):=' package/frpc-ext/Makefile
+          echo "package/frps-ext/Makefile"
+          grep -nE '^(PKG_VERSION|PKG_SOURCE_VERSION|GO_PKG|GO_PKG_BUILD_PKG):=' package/frps-ext/Makefile
+
       - name: Configure build
         run: |
           set -eux
