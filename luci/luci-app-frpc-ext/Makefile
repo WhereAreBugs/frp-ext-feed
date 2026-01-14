@@ -2,13 +2,13 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-frpc-ext
 PKG_VERSION:=0.66.2
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 PKG_LICENSE:=MIT
 PKG_MAINTAINER:=WhereAreBugs
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/WhereAreBugs/luci-app-frpc-ext.git
-PKG_SOURCE_VERSION:=0.66.2-ext
+PKG_SOURCE_VERSION:=0.66.2-ext2
 PKG_HASH:=skip
 PKG_MIRROR_HASH:=skip
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
