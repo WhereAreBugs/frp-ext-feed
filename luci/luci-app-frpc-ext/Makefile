@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-frpc-ext
 PKG_VERSION:=0.66.2
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_LICENSE:=MIT
 PKG_MAINTAINER:=WhereAreBugs
 
@@ -18,6 +18,19 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
 LUCI_TITLE:=LuCI support for frpc-ext
 LUCI_PKGARCH:=all
 LUCI_DEPENDS:=+frpc-ext
+
+define Package/$(PKG_NAME)/conffiles
+/etc/config/frpc_ext
+endef
+
+define Package/$(PKG_NAME)/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	( . /etc/uci-defaults/40_luci-frpc_ext ) && rm -f /etc/uci-defaults/40_luci-frpc_ext
+	rm -f /tmp/luci-indexcache /tmp/luci-modulecache
+fi
+exit 0
+endef
 
 include $(TOPDIR)/feeds/luci/luci.mk
 

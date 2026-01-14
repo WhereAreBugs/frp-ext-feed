@@ -1,0 +1,19 @@
+From 5f2b0c1234567890abcdef1234567890abcdef Mon Sep 17 00:00:00 2001
+From: cat <cat@example.com>
+Date: Thu, 1 Jan 1970 00:00:00 +0000
+Subject: [PATCH] luci-app-frps-ext: require nixio for file checks
+
+LuCI controller uses nixio.fs but never loads the module, which breaks
+menu registration. Explicitly require nixio so the controller can
+register its routes.
+
+--- a/luasrc/controller/frps_ext.lua
++++ b/luasrc/controller/frps_ext.lua
+@@
+-local http = require "luci.http"
+-local uci = require "luci.model.uci".cursor()
+-local sys = require "luci.sys"
++local http = require "luci.http"
++local uci = require "luci.model.uci".cursor()
++local sys = require "luci.sys"
++local nixio = require "nixio"
